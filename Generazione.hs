@@ -2,11 +2,7 @@
 {-# LANGUAGE NoMonomorphismRestriction, GeneralizedNewtypeDeriving #-}
 
 -- | definizione principale dei dati comuni ai moduli.
-module Generazione (index, Personale (..) , Turno (..) , Counter (..) , Associazione, PrimoSecondo (..)) where
-
-import Control.Monad (msum)
--- import Control.Monad.Instances
-import Data.List (lookup, (\\), intersect)
+module Generazione (Index , index, Personale (..) , Turno (..) , Counter , Associazione, PrimoSecondo (..)) where
 
 
 class Index a where

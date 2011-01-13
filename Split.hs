@@ -2,7 +2,7 @@
 -- | separazione interna di un turno assegnato
 module Split (prettyPersonaleSplit, prettyTurniSplit, split) where
 
-import Data.List (groupBy, sortBy, nub, (\\), splitAt, intersect)
+import Data.List (groupBy, sortBy, nub, (\\), intersect)
 import Data.Maybe (mapMaybe)
 import Data.Ord (comparing)
 import Data.Function (on)
@@ -39,9 +39,11 @@ split qs x@(g,_) n = case separatePrimoSecondo qs x of
 
 	
 -- allunga le stringhe alla misura della massima
-square xs = zipAmend (replicate (( maximum . map length $ xs) +1) ' ') where
+square ::[[a]] -> [Char] -> [Char]
+square zs = zipAmend (replicate (( maximum . map length $ zs) +1) ' ') where
 	zipAmend xs [] = xs
-	zipAmend (y:ys) (x:xs) = x: zipAmend ys xs
+	zipAmend [] _ = error "filler missing"
+	zipAmend (_:ys) (x:xs) = x: zipAmend ys xs
 
 -- | mappa gli indici di turni e personale indietro ai loro valori e fa una bella stampa, vista turni
 prettyTurniSplit :: (Personale -> String) -> (Turno -> String) -> [(Turno,([Personale],[Personale]))] -> String

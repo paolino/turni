@@ -4,76 +4,99 @@ module Generazione.Parser (parseGenerazione, Generazione (..)) where
 import Text.ParserCombinators.ReadP (ReadP, char, string, skipSpaces, look, satisfy, sepBy, 
 		many, (<++), munch1, readP_to_S, readS_to_P)
 import Data.Char (isSpace, isAlpha)
-import Control.Monad (guard, liftM2, msum)
+import Control.Monad (guard, liftM2, msum, void)
 -- import Control.Monad.Instances
-import Data.List (lookup, isPrefixOf, find)
+import Data.List (isPrefixOf, find)
 
-import Generazione (index, Personale (..), Turno (..), Counter, Associazione, PrimoSecondo (..))
+import Generazione (Index, index, Personale (..), Turno (..), Counter, Associazione, PrimoSecondo (..))
 import Generazione.Validazione
 
+header :: String -> ReadP ()
 header x = do	
 	skipSpaces
-	string x
+	void $ string x
 	skipSpaces
-	char ':'
+	void $ char ':'
 
+rigaVuota :: ReadP a -> ReadP a
 rigaVuota f = do 
 	look >>= guard . not . isPrefixOf "\n\n" 
 	(satisfy isSpace >> rigaVuota f) <++ f
 
+stanza :: String -> ReadP a -> ReadP [a]
 stanza x f = header x >> rigaVuota f `sepBy` char ','
 
+nome :: ReadP String
 nome = munch1 isAlpha
 
+type MappaTP = [(String,Int)]
+
+turni :: ReadP MappaTP
 turni = flip zip [1..] `fmap` stanza "Turni" nome
 
+personale :: ReadP MappaTP
 personale = flip zip [1..] `fmap` stanza "Personale" nome
 
-listaPersonale ps = resolvePersonale ps `sepBy` char '-'
-listaTurni ts = resolveTurno ts `sepBy` char '-'
-listaInteri = (readS_to_P reads :: ReadP Int) `sepBy` char '-'
-
-assocs f g = do
-	x <- f
-	char '-'
-	y <- g
-	return (x,y)
-
+resolveString :: String -> MappaTP -> ReadP Int
 resolveString k zs = do
 	s <- munch1 isAlpha
 	case lookup s zs of
 		Just n -> return n
 		Nothing -> error $ s ++ " non è un nome valido come " ++ k
 	
+resolvePersonale :: MappaTP -> ReadP Personale
 resolvePersonale = fmap Personale . resolveString "personale"
+
+resolveTurno :: MappaTP -> ReadP Turno
 resolveTurno = fmap Turno . resolveString "turno"
 
+listaPersonale :: MappaTP -> ReadP [Personale] 
+listaPersonale ps = resolvePersonale ps `sepBy` char '-'
 
+assocs :: ReadP a -> ReadP b -> ReadP (a,b)
+assocs f g = do
+	x <- f
+	void $ char '-'
+	y <- g
+	return (x,y)
+
+
+sincronizzatiP :: MappaTP -> ReadP [[Personale]]
 sincronizzatiP = stanza "Sincronizzati" . listaPersonale
 
+obbligatoriP :: MappaTP -> MappaTP -> ReadP [Associazione]
 obbligatoriP ps ts = stanza "Obbligatori" $ assocs (resolvePersonale ps) (resolveTurno ts)
 
+impossibiliP :: MappaTP -> MappaTP -> ReadP [Associazione]
 impossibiliP ps ts = stanza "Impossibili" $ assocs (resolvePersonale ps) (resolveTurno ts)
 
+occupazionePersonaleP :: MappaTP -> ReadP [(Personale,Int)]
+occupazionePersonaleP ps = stanza "OccupazionePersonale" $ assocs (resolvePersonale ps) (readS_to_P reads)
 
-occupazionePersonaleP ps = stanza "OccupazionePersonale" $ assocs (resolvePersonale ps) (readS_to_P reads :: ReadP Int)
+occupazioneTurniP :: MappaTP -> ReadP [(Turno,Int)]
+occupazioneTurniP ts = stanza "OccupazioneTurni" $ assocs (resolveTurno ts) (readS_to_P reads)
 
-occupazioneTurniP ts = stanza "OccupazioneTurni" $ assocs (resolveTurno ts) (readS_to_P reads :: ReadP Int)
-
+pauseVicineP :: MappaTP -> ReadP [Personale]
 pauseVicineP = stanza "PauseVicine" . resolvePersonale 
 
+pauseLontaneP :: MappaTP -> ReadP [Personale]
 pauseLontaneP = stanza "PauseLontane" . resolvePersonale
 
-splitP ts = stanza "Split" $ assocs (resolveTurno ts) $ assocs (readS_to_P reads :: ReadP Int)
- (readS_to_P reads :: ReadP Int)
+splitP :: MappaTP -> ReadP [(Turno,(Int,Int))]
+splitP ts = stanza "Split" $ assocs (resolveTurno ts) $ assocs (readS_to_P reads) (readS_to_P reads)
 
+campoNuovo :: ReadP a -> ReadP a
 campoNuovo f = do 
 	look >>= guard . not . liftM2 (||) (isPrefixOf "\n\t") (isPrefixOf "\n\n")
 	(satisfy isSpace >> campoNuovo f) <++ f
 
+listaTurniV :: MappaTP -> ReadP [Turno]
 listaTurniV ts = campoNuovo (resolveTurno ts) `sepBy` char ','
+
+listaPersonaleV :: MappaTP -> ReadP [Personale]
 listaPersonaleV ps = campoNuovo (resolvePersonale ps) `sepBy` char ','
 
+primoSecondoP :: MappaTP -> MappaTP -> ReadP PrimoSecondo
 primoSecondoP ts ps = do 
 	header "PrimoSecondo" 
 	header "Turno"
@@ -88,11 +111,15 @@ primoSecondoP ts ps = do
 	secondo <- listaPersonaleV ps 
 	return $ PrimoSecondo tus prs pas primo secondo
 
+mapOf :: Index a => MappaTP -> a -> String
 mapOf xs x = maybe (error "incongruenza nella risoluzione dei riferimenti ai nomi") fst . 
 	find ((==) (index x) . snd) $ xs
+
+mapSplit :: [(Turno,(Int,Int))] -> Turno  -> (Int,Int)
 mapSplit xs x = maybe (error "incongruenza nella ricerca dello split") snd . 
 	find ((==) x . fst) $ xs
 
+parse :: ReadP Generazione
 parse = do 
 	ts <- turni
 	ps <- personale 
@@ -125,7 +152,7 @@ data Generazione = Generazione {
         occupazioneTurni :: Counter Turno,
         pauseVicine :: [Personale],
         pauseLontane :: [Personale],
-	splitting :: (Turno -> (Int,Int)),
+	splitting :: Turno -> (Int,Int),
 	primoSecondo :: [PrimoSecondo]	
 	} 
 

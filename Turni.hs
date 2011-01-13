@@ -32,7 +32,7 @@ inserisci = foldl' inserisci' where
 		in (v:vs,ps',gs',t'')
 
 risolvi :: [[Personale]] -> Stato -> Maybe [Associazione]
-risolvi _ s@(vs,ps,gs,[]) = if all ((==) 0 . snd) ps && all ((==) 0 . snd) gs then Just . reverse $ vs
+risolvi _ (vs,ps,gs,[]) = if all ((==) 0 . snd) ps && all ((==) 0 . snd) gs then Just . reverse $ vs
 		else Nothing
 risolvi sincronizzati (vs,ps,gs,ts@((p,g):_)) = risolvi sincronizzati $ inserisci (vs,ps,gs,ts \\ xs) xs where
 	xs = map (,g) $ sincronizzato p

@@ -1,6 +1,7 @@
 module Riposo (controllaRiposo) where
 
 import Control.Monad (ap)
+import Control.Monad.Instances ()
 
 import Generazione (Personale)
 
