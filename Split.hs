@@ -2,7 +2,7 @@
 -- | separazione interna di un turno assegnato
 module Split (prettyPersonaleSplit, prettyTurniSplit, split) where
 
-import Data.List (groupBy, sortBy, nub, (\\), intersect)
+import Data.List (groupBy, sortBy, nub, (\\), intersect, intercalate)
 import Data.Maybe (mapMaybe)
 import Data.Ord (comparing)
 import Data.Function (on)
@@ -51,8 +51,8 @@ prettyTurniSplit fp ft xs = let
 	(rs,xs') = unzip . map (\(x,(ys,zs)) -> let x' = ft x; ys' = map fp ys ; zs' = map fp zs 
 		in (x':ys' ++ zs',(x',ys',zs'))) $ xs
 	q = square . concat $ rs
-	in concatMap (\(x,ys,zs) -> 	q x ++ " 1°: " ++ concatMap q ys ++ "\n" ++
-					q x ++ " 2°: " ++ concatMap q zs ++ "\n") xs' 
+	in concatMap (\(x,ys,zs) -> 	q x ++ " 1°: " ++ intercalate "," (map q ys) ++ "\n" ++
+					q x ++ " 2°: " ++ intercalate "," (map q zs) ++ "\n") xs' 
 -- cambia visione
 transposeTurni :: [(Turno,([Personale],[Personale]))] -> [(Personale,[(Bool,Turno)])]
 transposeTurni xs = let 
@@ -66,5 +66,5 @@ prettyPersonaleSplit fp ft xs = let
 		(x':ys',(x',zipWith (\(b,_) y' -> (b,y')) ys ys'))) $ transposeTurni xs
 	q = square . concat $ rs
 	in concatMap (\(x,ys) -> q x ++ ": " 
-		++ concatMap (\(b,y) -> q y ++ "(" ++ (if b then "1°" else "2°") ++ ")  ") ys ++ "\n") xs' 
+		++ concatMap (\(b,y) -> q y ++ "(" ++ (if b then "1°" else "2°") ++ "), ") ys ++ "\n") xs' 
 
