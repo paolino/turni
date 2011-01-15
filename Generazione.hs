@@ -2,18 +2,7 @@
 {-# LANGUAGE NoMonomorphismRestriction, GeneralizedNewtypeDeriving #-}
 
 -- | definizione principale dei dati comuni ai moduli.
-module Generazione (Index , index, Personale (..) , Turno (..) , Counter , Associazione, PrimoSecondo (..)) where
-
-
-class Index a where
-	index :: a -> Int
-
-instance Index Int where
-	index = id
-
-newtype Personale = Personale Int deriving (Eq,Ord,Show,Read,Index)
-
-newtype Turno = Turno Int deriving (Eq,Ord,Show,Read,Index)
+module Generazione (Index (..), Personale , Turno , Counter , Associazione, PrimoSecondo (..)) where
 
 type Counter a =  [(a,Int)] 
 
@@ -27,5 +16,11 @@ data PrimoSecondo = PrimoSecondo {
 	secondoTurno :: [Personale]
 	} deriving Show
 
+data Personale' 
+data Turno' 
 
 
+newtype Index a = Index {index :: Int} deriving (Eq,Show,Ord)
+
+type Personale = Index Personale'
+type Turno = Index Turno' 

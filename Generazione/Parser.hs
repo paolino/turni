@@ -4,12 +4,15 @@ module Generazione.Parser (parseGenerazione, Generazione (..)) where
 import Text.ParserCombinators.ReadP (ReadP, char, string, skipSpaces, look, satisfy, sepBy, 
 		many, (<++), munch1, readP_to_S, readS_to_P)
 import Data.Char (isSpace, isAlpha)
-import Control.Monad (guard, liftM2, msum, void)
--- import Control.Monad.Instances
+import Control.Monad (guard, liftM2, msum)
+import Control.Monad.Instances
 import Data.List (isPrefixOf, find)
 
-import Generazione (Index, index, Personale (..), Turno (..), Counter, Associazione, PrimoSecondo (..))
+import Generazione (Index (..), Personale , Turno , Counter, Associazione, PrimoSecondo (..))
 import Generazione.Validazione
+
+void :: Monad m => m a -> m ()
+void x = x >> return ()
 
 header :: String -> ReadP ()
 header x = do	
@@ -37,21 +40,15 @@ turni = flip zip [1..] `fmap` stanza "Turni" nome
 personale :: ReadP MappaTP
 personale = flip zip [1..] `fmap` stanza "Personale" nome
 
-resolveString :: String -> MappaTP -> ReadP Int
-resolveString k zs = do
+resolve :: MappaTP -> ReadP (Index a)
+resolve zs = do
 	s <- munch1 isAlpha
 	case lookup s zs of
-		Just n -> return n
-		Nothing -> error $ s ++ " non è un nome valido come " ++ k
-	
-resolvePersonale :: MappaTP -> ReadP Personale
-resolvePersonale = fmap Personale . resolveString "personale"
-
-resolveTurno :: MappaTP -> ReadP Turno
-resolveTurno = fmap Turno . resolveString "turno"
+		Just n -> return (Index n)
+		Nothing -> error $ s ++ " non è un nome valido"
 
 listaPersonale :: MappaTP -> ReadP [Personale] 
-listaPersonale ps = resolvePersonale ps `sepBy` char '-'
+listaPersonale ps = resolve ps `sepBy` char '-'
 
 assocs :: ReadP a -> ReadP b -> ReadP (a,b)
 assocs f g = do
@@ -65,25 +62,25 @@ sincronizzatiP :: MappaTP -> ReadP [[Personale]]
 sincronizzatiP = stanza "Sincronizzati" . listaPersonale
 
 obbligatoriP :: MappaTP -> MappaTP -> ReadP [Associazione]
-obbligatoriP ps ts = stanza "Obbligatori" $ assocs (resolvePersonale ps) (resolveTurno ts)
+obbligatoriP ps ts = stanza "Obbligatori" $ assocs (resolve ps) (resolve ts)
 
 impossibiliP :: MappaTP -> MappaTP -> ReadP [Associazione]
-impossibiliP ps ts = stanza "Impossibili" $ assocs (resolvePersonale ps) (resolveTurno ts)
+impossibiliP ps ts = stanza "Impossibili" $ assocs (resolve ps) (resolve ts)
 
 occupazionePersonaleP :: MappaTP -> ReadP [(Personale,Int)]
-occupazionePersonaleP ps = stanza "OccupazionePersonale" $ assocs (resolvePersonale ps) (readS_to_P reads)
+occupazionePersonaleP ps = stanza "OccupazionePersonale" $ assocs (resolve ps) (readS_to_P reads)
 
 occupazioneTurniP :: MappaTP -> ReadP [(Turno,Int)]
-occupazioneTurniP ts = stanza "OccupazioneTurni" $ assocs (resolveTurno ts) (readS_to_P reads)
+occupazioneTurniP ts = stanza "OccupazioneTurni" $ assocs (resolve ts) (readS_to_P reads)
 
 pauseVicineP :: MappaTP -> ReadP [Personale]
-pauseVicineP = stanza "PauseVicine" . resolvePersonale 
+pauseVicineP = stanza "PauseVicine" . resolve 
 
 pauseLontaneP :: MappaTP -> ReadP [Personale]
-pauseLontaneP = stanza "PauseLontane" . resolvePersonale
+pauseLontaneP = stanza "PauseLontane" . resolve
 
 splitP :: MappaTP -> ReadP [(Turno,(Int,Int))]
-splitP ts = stanza "Split" $ assocs (resolveTurno ts) $ assocs (readS_to_P reads) (readS_to_P reads)
+splitP ts = stanza "Split" $ assocs (resolve ts) $ assocs (readS_to_P reads) (readS_to_P reads)
 
 campoNuovo :: ReadP a -> ReadP a
 campoNuovo f = do 
@@ -91,10 +88,10 @@ campoNuovo f = do
 	(satisfy isSpace >> campoNuovo f) <++ f
 
 listaTurniV :: MappaTP -> ReadP [Turno]
-listaTurniV ts = campoNuovo (resolveTurno ts) `sepBy` char ','
+listaTurniV ts = campoNuovo (resolve ts) `sepBy` char ','
 
 listaPersonaleV :: MappaTP -> ReadP [Personale]
-listaPersonaleV ps = campoNuovo (resolvePersonale ps) `sepBy` char ','
+listaPersonaleV ps = campoNuovo (resolve ps) `sepBy` char ','
 
 primoSecondoP :: MappaTP -> MappaTP -> ReadP PrimoSecondo
 primoSecondoP ts ps = do 
@@ -111,7 +108,7 @@ primoSecondoP ts ps = do
 	secondo <- listaPersonaleV ps 
 	return $ PrimoSecondo tus prs pas primo secondo
 
-mapOf :: Index a => MappaTP -> a -> String
+mapOf :: MappaTP -> Index a -> String
 mapOf xs x = maybe (error "incongruenza nella risoluzione dei riferimenti ai nomi") fst . 
 	find ((==) (index x) . snd) $ xs
 
