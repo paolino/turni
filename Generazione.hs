@@ -1,5 +1,5 @@
 
-{-# LANGUAGE NoMonomorphismRestriction, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | definizione principale dei dati comuni ai moduli.
 module Generazione (Index (..), Personale , Turno , Counter , Associazione, PrimoSecondo (..)) where

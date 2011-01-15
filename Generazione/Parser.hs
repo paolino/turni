@@ -1,11 +1,10 @@
-{-# LANGUAGE NoMonomorphismRestriction, GeneralizedNewtypeDeriving #-}
 module Generazione.Parser (parseGenerazione, Generazione (..)) where
 
 import Text.ParserCombinators.ReadP (ReadP, char, string, skipSpaces, look, satisfy, sepBy, 
 		many, (<++), munch1, readP_to_S, readS_to_P)
 import Data.Char (isSpace, isAlpha)
 import Control.Monad (guard, liftM2, msum)
-import Control.Monad.Instances
+-- import Control.Monad.Instances
 import Data.List (isPrefixOf, find)
 
 import Generazione (Index (..), Personale , Turno , Counter, Associazione, PrimoSecondo (..))
